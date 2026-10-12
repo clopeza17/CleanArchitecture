@@ -1,0 +1,37 @@
+name: SonarQube Cloud - UMG DotNet
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  sonar:
+    name: Compilar y analizar CleanArchitecture
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    steps:
+      - name: Descargar codigo e historial
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Preparar SDK .NET 10
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.0.x'
+      - name: Instalar SonarScanner para .NET
+        run: dotnet tool install dotnet-sonarscanner --version 11.3.0 --tool-path "$RUNNER_TEMP/sonar-scanner"
+      - name: Iniciar, compilar y finalizar analisis
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: |
+          "$RUNNER_TEMP/sonar-scanner/dotnet-sonarscanner" begin /k:"clopeza17_CleanArchitecture" /o:"clopeza17" /d:sonar.host.url="https://sonarcloud.io" /d:sonar.token="$SONAR_TOKEN" /d:sonar.scanner.scanAll=false
+          dotnet build Clean.Architecture.slnx --configuration Release --no-incremental
+          "$RUNNER_TEMP/sonar-scanner/dotnet-sonarscanner" end /d:sonar.token="$SONAR_TOKEN"
